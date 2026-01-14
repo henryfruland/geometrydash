@@ -1,0 +1,1327 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Math Geometry Dash — Storage + 20 Levels (Pattern Obstacles)</title>
+  <style>
+    :root{
+      --bg:#0b0f1a; --fg:#e9eefc; --muted:#9fb0d6; --accent:#7c5cff;
+      --good:#2dd4bf; --bad:#ff4d6d; --panel: rgba(255,255,255,.06);
+      --border: rgba(255,255,255,.14);
+    }
+    html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;overscroll-behavior:none;}
+    body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
+    #wrap{height:100%;display:grid;place-items:center;padding:10px;}
+    canvas{
+      width:min(1100px,100%);
+      height:min(600px,62vh);
+      border-radius:16px;
+      box-shadow:0 18px 60px rgba(0,0,0,.45);
+      background:linear-gradient(180deg,#0b1020 0%,#070a12 100%);
+      touch-action:manipulation;
+    }
+
+    .pill{
+      background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12);
+      backdrop-filter:blur(10px);
+      padding:10px 14px; border-radius:999px; font-size:14px; pointer-events:none;
+    }
+    #hud{
+      position:fixed;top:10px;left:10px;right:10px;display:none;
+      align-items:center;justify-content:space-between;gap:10px;z-index:2;pointer-events:none;
+    }
+    #help{position:fixed;bottom:10px;left:10px;right:10px;display:none;justify-content:center;z-index:2;pointer-events:none;}
+    #help .pill{max-width:1100px;text-align:center;}
+
+    .overlay{
+      position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+      padding:18px; z-index:10;
+      background:radial-gradient(1200px 800px at 50% 35%, rgba(124,92,255,.35), rgba(0,0,0,.88));
+    }
+    .card{
+      width:min(1040px,96vw);
+      border-radius:22px; background:var(--panel); border:1px solid var(--border);
+      box-shadow:0 30px 100px rgba(0,0,0,.6);
+      padding:22px;
+    }
+    .grid{display:grid;grid-template-columns:1.15fr 1fr;gap:18px;}
+    @media (max-width: 760px){ .grid{grid-template-columns:1fr;} }
+    .panel{border-radius:18px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.22);padding:16px;}
+    h1{margin:0;font-size:clamp(26px,4vw,44px);font-weight:850;line-height:1.05;}
+    .sub{margin-top:10px;color:var(--muted);font-size:15px;line-height:1.4;}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .btn{
+      padding:14px 16px;border-radius:16px;border:1px solid rgba(255,255,255,.18);
+      background:rgba(124,92,255,.28);color:white;cursor:pointer;
+      font-size:18px;font-weight:800;touch-action:manipulation;
+    }
+    .btn.secondary{background:rgba(255,255,255,.08);font-weight:750;}
+    .btn:active{transform:translateY(1px);}
+    .tag{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.22);color:var(--muted);font-weight:750;}
+    select{
+      padding:12px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.18);
+      background:rgba(0,0,0,.25);color:var(--fg);font-size:16px;font-weight:800;
+      touch-action:manipulation;
+    }
+
+    /* Shop + Storage lists */
+    #shopOverlay{display:none;}
+    #storageOverlay{display:none;}
+    .shopHeader{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+    .shopTitle{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);}
+    .shopList{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media (max-width: 760px){ .shopList{grid-template-columns:1fr;} }
+    .power{
+      border-radius:16px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.22);padding:14px;
+      display:flex;flex-direction:column;gap:10px;
+    }
+    .powerTop{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+    .powerName{font-weight:900;font-size:18px;}
+    .powerTier{font-weight:850;font-size:12px;letter-spacing:.08em;text-transform:uppercase;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);}
+    .tier-verygood{color:var(--good);border-color:rgba(45,212,191,.35);background:rgba(45,212,191,.10);}
+    .tier-good{color:#a7f3d0;border-color:rgba(167,243,208,.25);background:rgba(167,243,208,.08);}
+    .tier-ok{color:#c7d2fe;border-color:rgba(199,210,254,.25);background:rgba(199,210,254,.08);}
+    .tier-bad{color:#fecaca;border-color:rgba(254,202,202,.25);background:rgba(254,202,202,.08);}
+    .powerDesc{color:var(--muted);line-height:1.35;}
+    .powerActions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;}
+    .mini{padding:10px 12px;border-radius:12px;font-size:14px;font-weight:850;}
+    .mini[disabled]{opacity:.45;cursor:not-allowed;}
+
+    /* Quiz / status overlays */
+    #quizOverlay{display:none;}
+    #statusOverlay{display:none;}
+    .bigQ{font-size:clamp(28px,5vw,52px);font-weight:950;margin-top:8px;}
+    .inputRow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+    input[type="text"]{
+      flex:1;min-width:220px;font-size:20px;padding:14px 14px;border-radius:12px;outline:none;
+      border:1px solid rgba(255,255,255,.18);background:rgba(0,0,0,.25);color:var(--fg);
+    }
+    .msg{min-height:24px;margin-top:10px;font-weight:900;}
+    .msg.good{color:var(--good);} .msg.bad{color:var(--bad);}
+  </style>
+</head>
+<body>
+  <div id="wrap"><canvas id="c"></canvas></div>
+
+  <div id="hud">
+    <div class="pill">
+      Level: <b id="lvlHud">1</b>/20 • Progress: <b id="prog">0%</b> • Diamonds: <b id="diamHud">0</b>
+      • Start Level: <b id="startLvlHud">1</b>
+    </div>
+    <div class="pill">Best: <b id="best">0%</b></div>
+  </div>
+  <div id="help">
+    <div class="pill">Tap / Click / Space to jump • Obstacles include double-spikes (spike hitboxes are smaller) • Every 1/4: MULTIPLY screen then DIVIDE screen • After questions: 3 seconds invincible + earn 2 diamonds • If you mess up: back to Start Level</div>
+  </div>
+
+  <!-- START -->
+  <div id="startOverlay" class="overlay">
+    <div class="card">
+      <div class="grid">
+        <div class="panel">
+          <h1>Math Geometry Dash</h1>
+          <div class="sub">
+            20 levels. Each level gets harder using obstacle patterns (speed stays like Level 1).<br/>
+            Every 1/8 of a level: <b>Multiplication screen</b> then <b>Division screen</b>.
+            <br/><br/>
+            If you crash or answer wrong: you go back to the <b>Start Level</b>.
+          </div>
+
+          <div class="row" style="margin-top:14px;">
+            <button id="startBtn" class="btn" style="flex:1;min-width:170px;">START</button>
+            <button id="shopBtn" class="btn secondary" style="flex:1;min-width:170px;">SUPERPOWERS</button>
+            <button id="storageBtn" class="btn secondary" style="flex:1;min-width:170px;">STORAGE</button>
+          </div>
+
+          <div class="row" style="margin-top:12px;">
+            <span class="tag">Diamonds: <span style="color:var(--fg);font-weight:900;margin-left:6px;" id="diamStart">0</span> 💎</span>
+            <span class="tag">Storage items: <span style="color:var(--fg);font-weight:900;margin-left:6px;" id="storageCount">0</span></span>
+            <span class="tag">Armed for next run: <span style="color:var(--fg);font-weight:900;margin-left:6px;" id="armedCount">0</span></span>
+          </div>
+
+          <div class="sub" style="margin-top:10px;">
+            Buy superpowers → they go into <b>Storage</b>. In Storage, tap one power to <b>use it right now</b> (it gets armed for your next run).
+          </div>
+        </div>
+
+        <div class="panel">
+          <div style="font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Choose Start Level</div>
+          <div class="row" style="align-items:center;justify-content:space-between;">
+            <div class="sub" style="margin:0;">Start at level:</div>
+            <select id="startLevelSelect"></select>
+          </div>
+          <div class="sub" style="margin-top:12px;">
+            Level reward: <b id="rewardText">0</b> diamonds 💎
+          </div>
+
+          <div class="sub" style="margin-top:16px;">
+            <b>Pick any level</b> (practice mode): choose a level and play it right away.
+          </div>
+          <div class="row" style="margin-top:10px;align-items:center;justify-content:space-between;">
+            <div class="sub" style="margin:0;">Practice level:</div>
+            <select id="practiceLevelSelect"></select>
+          </div>
+          <div class="row" style="margin-top:10px;">
+            <button id="practiceBtn" class="btn secondary" style="width:100%;">Play Selected Level</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHOP -->
+  <div id="shopOverlay" class="overlay" aria-hidden="true">
+    <div class="card">
+      <div class="shopHeader">
+        <div>
+          <div class="shopTitle">Superpowers Shop</div>
+          <div class="sub" style="margin-top:6px;">Buy powers with diamonds 💎. They go into <b>Storage</b>.</div>
+        </div>
+        <div class="tag">Diamonds: <span style="color:var(--fg);font-weight:900;margin-left:6px;" id="diamShop">0</span> 💎</div>
+      </div>
+
+      <div class="shopList" id="shopList"></div>
+
+      <div class="row" style="margin-top:14px;justify-content:flex-end;">
+        <button id="closeShopBtn" class="btn secondary">Go Back to Start Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STORAGE -->
+  <div id="storageOverlay" class="overlay" aria-hidden="true">
+    <div class="card">
+      <div class="shopHeader">
+        <div>
+          <div class="shopTitle">Storage</div>
+          <div class="sub" style="margin-top:6px;">Tap a power to <b>use 1</b> right now (it arms it for your next run).</div>
+        </div>
+        <div class="row" style="gap:10px;">
+          <span class="tag">Diamonds: <span style="color:var(--fg);font-weight:900;margin-left:6px;" id="diamStorage">0</span> 💎</span>
+          <span class="tag">Armed: <span style="color:var(--fg);font-weight:900;margin-left:6px;" id="armedTag">0</span></span>
+        </div>
+      </div>
+
+      <div class="shopList" id="storageList"></div>
+
+      <div class="row" style="margin-top:14px;justify-content:space-between;">
+        <button id="clearArmedBtn" class="btn secondary">Clear Armed</button>
+        <button id="closeStorageBtn" class="btn secondary">Go Back to Start Menu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ -->
+  <div id="quizOverlay" class="overlay" aria-hidden="true">
+    <div class="card" style="max-width:780px;">
+      <div style="font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);" id="quizTitle">Math Checkpoint</div>
+      <div class="bigQ" id="qText">?</div>
+      <div class="sub">Type the answer and press Enter.</div>
+
+      <div class="inputRow">
+        <input id="qAnswer" type="text" inputmode="numeric" autocomplete="off" placeholder="Your answer…" />
+        <button id="qSubmit" class="btn">Submit</button>
+        <button id="qNew" class="btn secondary">New Question</button>
+      </div>
+      <div id="qMsg" class="msg"></div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div id="statusOverlay" class="overlay" aria-hidden="true">
+    <div class="card" style="max-width:780px;">
+      <div style="font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);" id="statusTitle">Status</div>
+      <div class="bigQ" id="statusBig">—</div>
+      <div class="sub" id="statusSub">—</div>
+      <div class="row" style="margin-top:14px;">
+        <button id="statusBtn1" class="btn" style="flex:1;min-width:180px;">Go Back to Start Menu</button>
+        <button id="statusBtn2" class="btn secondary" style="flex:1;min-width:180px;">Play</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ===== Canvas / DPR =====
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+
+  function resizeCanvas(){
+    const dpr = Math.max(1, Math.min(2.5, window.devicePixelRatio || 1));
+    const wrap = document.getElementById('wrap');
+    const cssW = Math.min(1100, wrap.clientWidth - 20);
+    const cssH = Math.min(600, Math.floor(window.innerHeight * 0.62));
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // ===== UI refs =====
+  const startOverlay = document.getElementById('startOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const practiceBtn = document.getElementById('practiceBtn');
+  const shopBtn = document.getElementById('shopBtn');
+  const storageBtn = document.getElementById('storageBtn');
+
+  const shopOverlay = document.getElementById('shopOverlay');
+  const closeShopBtn = document.getElementById('closeShopBtn');
+  const shopListEl = document.getElementById('shopList');
+
+  const storageOverlay = document.getElementById('storageOverlay');
+  const closeStorageBtn = document.getElementById('closeStorageBtn');
+  const storageListEl = document.getElementById('storageList');
+  const clearArmedBtn = document.getElementById('clearArmedBtn');
+
+  const startLevelSelect = document.getElementById('startLevelSelect');
+  const practiceLevelSelect = document.getElementById('practiceLevelSelect');
+  const rewardText = document.getElementById('rewardText');
+
+  const hud = document.getElementById('hud');
+  const help = document.getElementById('help');
+  const lvlHud = document.getElementById('lvlHud');
+  const startLvlHud = document.getElementById('startLvlHud');
+  const progEl = document.getElementById('prog');
+  const bestEl = document.getElementById('best');
+  const diamHud = document.getElementById('diamHud');
+  const diamStart = document.getElementById('diamStart');
+  const diamShop = document.getElementById('diamShop');
+  const diamStorage = document.getElementById('diamStorage');
+  const storageCountEl = document.getElementById('storageCount');
+  const armedCountEl = document.getElementById('armedCount');
+  const armedTag = document.getElementById('armedTag');
+
+  const quizOverlay = document.getElementById('quizOverlay');
+  const quizTitle = document.getElementById('quizTitle');
+  const qText = document.getElementById('qText');
+  const qAnswer = document.getElementById('qAnswer');
+  const qSubmit = document.getElementById('qSubmit');
+  const qNew = document.getElementById('qNew');
+  const qMsg = document.getElementById('qMsg');
+
+  const statusOverlay = document.getElementById('statusOverlay');
+  const statusTitle = document.getElementById('statusTitle');
+  const statusBig = document.getElementById('statusBig');
+  const statusSub = document.getElementById('statusSub');
+  const statusBtn1 = document.getElementById('statusBtn1');
+  const statusBtn2 = document.getElementById('statusBtn2');
+
+  // ===== Save keys =====
+  const LS_DIAM = "mgd4_diamonds";
+  const LS_INV  = "mgd4_inventory_counts";
+  const LS_ARM  = "mgd4_armed_for_next_run";
+  const LS_BEST = "mgd4_best";
+  const LS_STARTLEVEL = "mgd4_start_level";
+  const LS_PRACTICELEVEL = "mgd4_practice_level";
+
+  // ===== Powers =====
+  const POWERS = [
+    { id:"mega_shield", name:"Mega Shield", tier:"verygood", cost:50, desc:"Very good: Hit ONE spike and not lose (shield breaks after the hit)." },
+    { id:"slow_time",   name:"Slow Time",   tier:"good",     cost:30, desc:"Good: Level runs 20% slower." },
+    { id:"double_jump", name:"Double Jump", tier:"ok",       cost:20, desc:"Okay: You can jump one extra time in the air." },
+    { id:"small_hitbox",name:"Small Hitbox",tier:"bad",      cost:8,  desc:"Bad: Your cube is a little smaller." },
+    { id:"tiny_boost",  name:"Tiny Jump Boost", tier:"bad",  cost:5,  desc:"Bad: Jump is a little higher." },
+  ];
+
+  function tierClass(t){
+    if (t==="verygood") return "tier-verygood";
+    if (t==="good") return "tier-good";
+    if (t==="ok") return "tier-ok";
+    return "tier-bad";
+  }
+  function tierLabel(t){
+    if (t==="verygood") return "VERY GOOD";
+    if (t==="good") return "GOOD";
+    if (t==="ok") return "OKAY";
+    return "BAD";
+  }
+
+  // ===== Storage + Diamonds =====
+  function getDiamonds(){ return Number(localStorage.getItem(LS_DIAM) || 0); }
+  function setDiamonds(v){ localStorage.setItem(LS_DIAM, String(Math.max(0, Math.floor(v)))); syncUI(); }
+
+  function getInv(){ try { return JSON.parse(localStorage.getItem(LS_INV) || "{}"); } catch { return {}; } }
+  function setInv(obj){ localStorage.setItem(LS_INV, JSON.stringify(obj)); syncUI(); }
+
+  function getArmed(){ try { return JSON.parse(localStorage.getItem(LS_ARM) || "{}"); } catch { return {}; } }
+  function setArmed(obj){ localStorage.setItem(LS_ARM, JSON.stringify(obj)); syncUI(); }
+
+  function invCountTotal(){
+    const inv = getInv();
+    return Object.values(inv).reduce((a,b)=>a+(Number(b)||0),0);
+  }
+  function armedCountTotal(){
+    const arm = getArmed();
+    return Object.values(arm).reduce((a,b)=>a+(Number(b)||0),0);
+  }
+
+  function syncUI(){
+    const d = getDiamonds();
+    diamHud.textContent = d;
+    diamStart.textContent = d;
+    diamShop.textContent = d;
+    diamStorage.textContent = d;
+
+    storageCountEl.textContent = invCountTotal();
+    armedCountEl.textContent = armedCountTotal();
+    armedTag.textContent = armedCountTotal();
+  }
+  syncUI();
+
+  // ===== Shop rendering =====
+  function renderShop(){
+    const diamonds = getDiamonds();
+    const inv = getInv();
+    shopListEl.innerHTML = "";
+
+    for (const p of POWERS){
+      const canBuy = diamonds >= p.cost;
+      const ownedCount = Number(inv[p.id] || 0);
+
+      const card = document.createElement("div");
+      card.className = "power";
+      card.innerHTML = `
+        <div class="powerTop">
+          <div>
+            <div class="powerName">${p.name}</div>
+            <div class="powerDesc">${p.desc}</div>
+          </div>
+          <div class="powerTier ${tierClass(p.tier)}">${tierLabel(p.tier)}</div>
+        </div>
+        <div class="powerActions">
+          <div style="font-weight:950;">${p.cost} 💎</div>
+          <div class="row" style="justify-content:flex-end;gap:10px;">
+            <span class="tag" style="pointer-events:none;">In storage: <b style="color:var(--fg)">${ownedCount}</b></span>
+            <button class="btn mini ${canBuy ? "" : "secondary"}" ${canBuy ? "" : "disabled"} data-buy="${p.id}">
+              ${canBuy ? "Buy" : "Not enough 💎"}
+            </button>
+          </div>
+        </div>
+      `;
+      shopListEl.appendChild(card);
+    }
+
+    shopListEl.querySelectorAll("[data-buy]").forEach(btn => {
+      btn.addEventListener("click", () => buyPower(btn.getAttribute("data-buy")));
+    });
+  }
+
+  function buyPower(id){
+    const p = POWERS.find(x => x.id === id);
+    if (!p) return;
+    const diamonds = getDiamonds();
+    if (diamonds < p.cost) return;
+
+    setDiamonds(diamonds - p.cost);
+
+    const inv = getInv();
+    inv[id] = Number(inv[id] || 0) + 1;
+    setInv(inv);
+
+    renderShop();
+  }
+
+  shopBtn.addEventListener("click", () => {
+    shopOverlay.style.display = "flex";
+    renderShop();
+    syncUI();
+  });
+  closeShopBtn.addEventListener("click", () => {
+    shopOverlay.style.display = "none";
+    startOverlay.style.display = "flex";
+    syncUI();
+  });
+
+  // ===== Storage rendering =====
+  function renderStorage(){
+    const inv = getInv();
+    const armed = getArmed();
+    storageListEl.innerHTML = "";
+
+    for (const p of POWERS){
+      const count = Number(inv[p.id] || 0);
+      const armedCount = Number(armed[p.id] || 0);
+
+      const card = document.createElement("div");
+      card.className = "power";
+      card.innerHTML = `
+        <div class="powerTop">
+          <div>
+            <div class="powerName">${p.name}</div>
+            <div class="powerDesc">${p.desc}</div>
+          </div>
+          <div class="powerTier ${tierClass(p.tier)}">${tierLabel(p.tier)}</div>
+        </div>
+        <div class="powerActions">
+          <div class="row" style="gap:10px;">
+            <span class="tag" style="pointer-events:none;">Stored: <b style="color:var(--fg)">${count}</b></span>
+            <span class="tag" style="pointer-events:none;">Armed: <b style="color:var(--fg)">${armedCount}</b></span>
+          </div>
+          <div class="row" style="justify-content:flex-end;gap:10px;">
+            <button class="btn mini ${count>0 ? "" : "secondary"}" ${count>0 ? "" : "disabled"} data-use="${p.id}">
+              Use 1 Now
+            </button>
+          </div>
+        </div>
+      `;
+      storageListEl.appendChild(card);
+    }
+
+    storageListEl.querySelectorAll("[data-use]").forEach(btn => {
+      btn.addEventListener("click", () => useFromStorage(btn.getAttribute("data-use")));
+    });
+  }
+
+  function useFromStorage(id){
+    const inv = getInv();
+    const count = Number(inv[id] || 0);
+    if (count <= 0) return;
+
+    inv[id] = count - 1;
+    setInv(inv);
+
+    const armed = getArmed();
+    armed[id] = Number(armed[id] || 0) + 1;
+    setArmed(armed);
+
+    renderStorage();
+    syncUI();
+  }
+
+  function clearArmed(){
+    setArmed({});
+    renderStorage();
+    syncUI();
+  }
+
+  storageBtn.addEventListener("click", () => {
+    storageOverlay.style.display = "flex";
+    renderStorage();
+    syncUI();
+  });
+  closeStorageBtn.addEventListener("click", () => {
+    storageOverlay.style.display = "none";
+    startOverlay.style.display = "flex";
+    syncUI();
+  });
+  clearArmedBtn.addEventListener("click", clearArmed);
+
+  // ===== 20 Levels (speed constant like level 1; difficulty from patterns) =====
+  const TOTAL_LEVELS = 20;
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+  function levelConfig(level){
+    // Keep speed the same on every level (like level 1), but:
+    // - math range increases a bit
+    // - rewards increase a bit
+    // - pattern "hardness" increases
+    const t = (level - 1) / (TOTAL_LEVELS - 1);
+
+    const speedStart = 360;  // same as level 1
+    const speedMax   = 650;  // same as level 1
+        const mulMax     = 6; // MUCH easier multiplication (2..6)
+        const divMax     = 6; // MUCH easier division (2..6)
+    const reward     = Math.round(10 + level * 2); // 12..50
+    const patternHard = t; // 0..1
+
+    // "Spread out" overall density by keeping large base gaps,
+    // but later levels add harder patterns (double spikes, staircases).
+    const baseGapMin = 300;
+    const baseGapMax = 520;
+
+    return { level, speedStart, speedMax, mulMax, divMax, reward, patternHard, baseGapMin, baseGapMax };
+  }
+
+  function initLevelSelects(){
+    startLevelSelect.innerHTML = "";
+    practiceLevelSelect.innerHTML = "";
+
+    for (let i=1;i<=TOTAL_LEVELS;i++){
+      const opt1 = document.createElement("option");
+      opt1.value = String(i);
+      opt1.textContent = `Level ${i}`;
+      startLevelSelect.appendChild(opt1);
+
+      const opt2 = document.createElement("option");
+      opt2.value = String(i);
+      opt2.textContent = `Level ${i}`;
+      practiceLevelSelect.appendChild(opt2);
+    }
+
+    const savedStart = Number(localStorage.getItem(LS_STARTLEVEL) || 1);
+    startLevelSelect.value = String(clamp(savedStart,1,TOTAL_LEVELS));
+
+    const savedPractice = Number(localStorage.getItem(LS_PRACTICELEVEL) || 1);
+    practiceLevelSelect.value = String(clamp(savedPractice,1,TOTAL_LEVELS));
+
+    rewardText.textContent = String(levelConfig(Number(startLevelSelect.value)).reward);
+    startLvlHud.textContent = startLevelSelect.value;
+
+    startLevelSelect.addEventListener("change", () => {
+      const v = Number(startLevelSelect.value);
+      localStorage.setItem(LS_STARTLEVEL, String(v));
+      rewardText.textContent = String(levelConfig(v).reward);
+      startLvlHud.textContent = String(v);
+    });
+
+    practiceLevelSelect.addEventListener("change", () => {
+      localStorage.setItem(LS_PRACTICELEVEL, String(Number(practiceLevelSelect.value)));
+    });
+  }
+  initLevelSelects();
+
+  // ===== Best score =====
+  let bestPct = Number(localStorage.getItem(LS_BEST) || 0);
+  bestEl.textContent = `${Math.floor(bestPct)}%`;
+
+  // ===== Game state =====
+  let running = false;
+  let pausedForQuiz = false;
+
+  let startLevel = Number(startLevelSelect.value) || 1;
+  let currentLevel = startLevel;
+
+  let practiceMode = false;
+  let practiceLevel = 1;
+
+  // Longer levels:
+  const LEVEL_LEN = 30000;
+  const GATE_COUNT = 4; // questions every 1/4 of the level
+
+  let tPrev = performance.now();
+  let distance = 0;
+  let speed = 0;
+
+  let gatesPassed = 0;
+  let nextGateAt = LEVEL_LEN / GATE_COUNT;
+
+  // Obstacles
+  const spikes = []; // {x,y,w,h}
+  const blocks = []; // {x,y,w,h}
+  let nextSpawnX = 0;
+
+  const rand = (a,b)=> a + Math.random()*(b-a);
+
+  // Physics
+  const GRAVITY = 3600;
+  let JUMP_VY_BASE = -1050; // higher jump
+  const player = { x: 0, y: 0, w: 46, h: 46, vy: 0, onGround: true, rot: 0, shield: false, airJumps: 0 };
+
+  // Rainbow trail
+  const trail = []; // {x,y,t}
+  const TRAIL_MAX = 70;
+
+
+  // ===== Music (different song per level) =====
+  let audioCtx = null;
+  let songTimer = null;
+  let songStep = 0;
+  let currentSong = null;
+  let masterGain = null;
+
+  const SONGS = Array.from({length: 20}, (_, i) => {
+    const base = 220 + i*12; // changes pitch by level
+    const seqs = [
+      [0,2,4,7,4,2], [0,3,5,7,5,3], [0,2,5,9,5,2],
+      [0,4,7,11,7,4], [0,2,4,5,7,5,4,2],
+      [0,5,7,10,7,5], [0,2,3,7,3,2], [0,7,5,4,2],
+    ];
+    const seq = seqs[i % seqs.length];
+    const bpm = 105 + (i % 5) * 10;
+    const wave = (i % 4 === 0) ? "square" : (i % 4 === 1) ? "sawtooth" : (i % 4 === 2) ? "triangle" : "sine";
+    return { base, seq, bpm, wave };
+  });
+
+  function ensureAudio(){
+    if (!audioCtx){
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.06;
+      masterGain.connect(audioCtx.destination);
+    }
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(()=>{});
+  }
+
+  function stopMusic(){
+    if (songTimer){ clearInterval(songTimer); songTimer = null; }
+    songStep = 0;
+    currentSong = null;
+  }
+
+  function playNote(freq, wave="square", dur=0.14){
+    if (!audioCtx || !masterGain) return;
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = wave;
+    o.frequency.value = freq;
+
+    const t0 = audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.9, t0 + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    o.connect(g);
+    g.connect(masterGain);
+    o.start(t0);
+    o.stop(t0 + dur + 0.02);
+  }
+
+  function startMusicForLevel(level){
+    ensureAudio();
+    stopMusic();
+
+    const s = SONGS[Math.max(1, Math.min(20, level)) - 1];
+    currentSong = s;
+    const stepMs = Math.round(60000 / s.bpm / 2);
+
+    songTimer = setInterval(() => {
+      if (!currentSong) return;
+      const deg = currentSong.seq[songStep % currentSong.seq.length];
+      const freq = currentSong.base * Math.pow(2, deg/12);
+      playNote(freq, currentSong.wave, 0.13);
+      songStep++;
+    }, stepMs);
+  }
+
+  // Invincibility after questions
+  let invincibleUntil = 0;
+
+  function worldW(){ return canvas.clientWidth; }
+  function worldH(){ return canvas.clientHeight; }
+  function groundY(){ return Math.floor(worldH() * 0.82); }
+
+  // ===== Armed powers apply (consumed for this run) =====
+  function consumeArmedForRun(){
+    const armed = getArmed();
+    setArmed({});
+    return armed;
+  }
+
+  let runPowers = {}; // {id: count}
+  function hasRunPower(id){ return Number(runPowers[id] || 0) > 0; }
+
+  function applyRunPowers(){
+    player.shield = false;
+    player.airJumps = 0;
+    player.w = 46; player.h = 46;
+
+    JUMP_VY_BASE = -1050;
+
+    if (hasRunPower("mega_shield")) player.shield = true;
+    if (hasRunPower("double_jump")) player.airJumps = 1;
+    if (hasRunPower("small_hitbox")) { player.w = 40; player.h = 40; }
+    if (hasRunPower("tiny_boost")) { JUMP_VY_BASE = -1180; }
+  }
+
+  function slowFactor(){
+    return hasRunPower("slow_time") ? 0.80 : 1.0;
+  }
+
+  // ===== Status overlay helpers =====
+  function showStatus(title, big, sub, b1, b2, on1, on2){
+    statusTitle.textContent = title;
+    statusBig.textContent = big;
+    statusSub.textContent = sub;
+    statusBtn1.textContent = b1;
+    statusBtn2.textContent = b2;
+    statusBtn1.onclick = on1;
+    statusBtn2.onclick = on2;
+    statusOverlay.style.display = "flex";
+  }
+  function hideStatus(){ statusOverlay.style.display = "none"; }
+
+  // ===== Start / Reset rules =====
+  function backToStartMenu(){
+    stopMusic();
+    running = false;
+    pausedForQuiz = false;
+    practiceMode = false;
+
+    quizOverlay.style.display = "none";
+    statusOverlay.style.display = "none";
+    shopOverlay.style.display = "none";
+    storageOverlay.style.display = "none";
+
+    hud.style.display = "none";
+    help.style.display = "none";
+    startOverlay.style.display = "flex";
+
+    startLevel = Number(startLevelSelect.value) || 1;
+    startLvlHud.textContent = String(startLevel);
+    rewardText.textContent = String(levelConfig(startLevel).reward);
+    syncUI();
+  }
+
+  function resetToStartLevel(reason){
+    running = false;
+    pausedForQuiz = false;
+    quizOverlay.style.display = "none";
+
+    currentLevel = practiceMode ? practiceLevel : startLevel;
+
+    showStatus(
+      "Try Again!",
+      reason,
+      practiceMode ? `You restart Level ${practiceLevel}.` : `You go back to Level ${startLevel}.`,
+      "Go Back to Start Menu",
+      "Play",
+      () => backToStartMenu(),
+      () => { hideStatus(); startSingleLevel(currentLevel, /*powersAlreadyApplied*/ true); }
+    );
+  }
+
+  // ===== Campaign / Practice starts =====
+  function startCampaign(){
+    ensureAudio();
+    hideStatus();
+    practiceMode = false;
+
+    startLevel = Number(startLevelSelect.value) || 1;
+    currentLevel = startLevel;
+    startLvlHud.textContent = String(startLevel);
+
+    runPowers = consumeArmedForRun();
+    applyRunPowers();
+
+    startOverlay.style.display = "none";
+    hud.style.display = "flex";
+    help.style.display = "flex";
+
+    startSingleLevel(currentLevel, /*powersAlreadyApplied*/ true);
+  }
+
+  function startPractice(){
+    ensureAudio();
+    hideStatus();
+    practiceMode = true;
+
+    startLevel = Number(startLevelSelect.value) || 1;
+    startLvlHud.textContent = String(startLevel);
+
+    practiceLevel = Number(practiceLevelSelect.value) || 1;
+    currentLevel = practiceLevel;
+
+    runPowers = consumeArmedForRun();
+    applyRunPowers();
+
+    startOverlay.style.display = "none";
+    hud.style.display = "flex";
+    help.style.display = "flex";
+
+    startSingleLevel(currentLevel, /*powersAlreadyApplied*/ true);
+  }
+
+  startBtn.addEventListener("click", startCampaign);
+  practiceBtn.addEventListener("click", startPractice);
+
+  // ===== Obstacle patterns (kept possible) =====
+  function addSpike(x, y, size=42){
+    spikes.push({ x, y: y - size, w: size, h: size });
+  }
+  function addDoubleSpike(x, y, size=42, gap=10){
+    addSpike(x, y, size);
+    addSpike(x + size + gap, y, size);
+  }
+  function addBlock(x, y, w, h){
+    blocks.push({ x, y, w, h });
+  }
+
+  function clearObstacles(){
+    spikes.length = 0;
+    blocks.length = 0;
+    nextSpawnX = worldW() + 220;
+  }
+
+  function addPattern(cfg){
+    const GY = groundY();
+
+    // Spread out patterns
+    nextSpawnX += rand(cfg.baseGapMin, cfg.baseGapMax);
+
+    const hard = cfg.patternHard;
+    const r = Math.random();
+
+    if (r < (0.45 - hard*0.10)){
+      // Single spike
+      addSpike(nextSpawnX, GY, 42);
+      nextSpawnX += 140;
+
+    } else if (r < (0.75 - hard*0.05)){
+      // Double spike
+      addDoubleSpike(nextSpawnX, GY, 42, 12);
+      nextSpawnX += 200;
+
+    } else {
+      // Triple spike (hard but possible)
+      addDoubleSpike(nextSpawnX, GY, 42, 10);
+      addSpike(nextSpawnX + 42*2 + 10*2, GY, 42);
+      nextSpawnX += 42*3 + 10*2 + 160;
+    }
+  }
+
+  function ensureObstaclesAhead(cfg){
+    // Keep generating patterns so there's always content ahead of the screen
+    const targetAhead = worldW() + 900;
+    while (nextSpawnX < targetAhead){
+      addPattern(cfg);
+    }
+  }
+
+  // ===== Single level setup =====
+  function startSingleLevel(levelNum, powersAlreadyApplied=false){
+    const cfg = levelConfig(levelNum);
+
+    if (!powersAlreadyApplied){
+      runPowers = consumeArmedForRun();
+      applyRunPowers();
+    }
+
+    distance = 0;
+    gatesPassed = 0;
+    nextGateAt = LEVEL_LEN / GATE_COUNT;
+    invincibleUntil = 0;
+    trail.length = 0;
+
+    speed = cfg.speedStart;
+
+    player.x = Math.floor(worldW() * 0.22);
+    player.y = groundY() - player.h;
+    player.vy = 0;
+    player.onGround = true;
+    player.rot = 0;
+
+    pausedForQuiz = false;
+    running = true;
+
+    lvlHud.textContent = String(levelNum);
+    startMusicForLevel(levelNum);
+
+    clearObstacles();
+    ensureObstaclesAhead(cfg);
+
+    updateHud();
+    syncUI();
+  }
+
+  // ===== Input =====
+  function jump(){
+    if (!running || pausedForQuiz) return;
+    if (player.onGround){
+      player.vy = JUMP_VY_BASE;
+      player.onGround = false;
+    } else if (player.airJumps > 0){
+      player.airJumps -= 1;
+      player.vy = JUMP_VY_BASE;
+    }
+  }
+
+  window.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.code === "ArrowUp"){
+      e.preventDefault();
+      jump();
+    }
+    if (pausedForQuiz && e.key === "Enter"){
+      e.preventDefault();
+      submitAnswer();
+    }
+    if (!pausedForQuiz && (e.key === "r" || e.key === "R") && running){
+      e.preventDefault();
+      startSingleLevel(currentLevel, /*powersAlreadyApplied*/ true);
+    }
+  }, {passive:false});
+  canvas.addEventListener("pointerdown", () => { ensureAudio(); jump(); });
+
+  // ===== Math checkpoints: MULTIPLY then DIVIDE =====
+  let currentAnswer = null;
+  let quizMode = "mul";
+  let quizStep = 0; // 0 mul, 1 div
+
+  function makeMulQuestion(cfg){
+    const a = Math.floor(rand(2, cfg.mulMax + 1));
+    const b = Math.floor(rand(2, cfg.mulMax + 1));
+    currentAnswer = a * b;
+    qText.textContent = `${a} × ${b} = ?`;
+    quizTitle.textContent = "Checkpoint — Multiplication";
+  }
+  function makeDivQuestion(cfg){
+    const b = Math.floor(rand(2, cfg.divMax + 1));
+    const c = Math.floor(rand(2, cfg.divMax + 1));
+    const a = b * c;
+    currentAnswer = c;
+    qText.textContent = `${a} ÷ ${b} = ?`;
+    quizTitle.textContent = "Checkpoint — Division";
+  }
+
+  function generateQuestion(){
+    const cfg = levelConfig(currentLevel);
+    qMsg.textContent = "";
+    qMsg.className = "msg";
+    if (quizMode === "mul") makeMulQuestion(cfg);
+    else makeDivQuestion(cfg);
+    qAnswer.value = "";
+    qAnswer.focus();
+  }
+
+  function showQuiz(mode){
+    pausedForQuiz = true;
+    quizMode = mode;
+    quizOverlay.style.display = "flex";
+    generateQuestion();
+  }
+  function hideQuiz(){
+    quizOverlay.style.display = "none";
+    pausedForQuiz = false;
+  }
+
+  function submitAnswer(){
+    const v = Number(String(qAnswer.value).trim());
+    if (!Number.isFinite(v)) return;
+
+    if (v === currentAnswer){
+      qMsg.textContent = "Correct!";
+      qMsg.className = "msg good";
+
+      setTimeout(() => {
+        hideQuiz();
+        if (quizStep === 0){
+          quizStep = 1;
+          showQuiz("div");
+        } else {
+          quizStep = 0;
+          invincibleUntil = performance.now() + 3000; // 3 seconds invincible after questions
+          setDiamonds(getDiamonds() + 2); // reward for answering questions correctly
+        }
+      }, 180);
+
+    } else {
+      qMsg.textContent = "Wrong!";
+      qMsg.className = "msg bad";
+      setTimeout(() => {
+        quizOverlay.style.display = "none";
+        pausedForQuiz = false;
+        resetToStartLevel("Wrong answer.");
+      }, 220);
+    }
+  }
+
+  qSubmit.addEventListener("click", submitAnswer);
+  qNew.addEventListener("click", generateQuestion);
+
+  // ===== Collision =====
+  function rectsOverlap(ax, ay, aw, ah, bx, by, bw, bh){
+    return ax < bx + bw && ax + aw > bx && ay < by + bh && ay + ah > by;
+  }
+
+  function hitSpike(){
+    if (performance.now() < invincibleUntil) return;
+    if (player.shield){
+      player.shield = false;
+      // remove spike we hit to avoid immediate re-hit
+      if (spikes.length) spikes.shift();
+      return;
+    }
+    resetToStartLevel("You crashed.");
+  }
+
+  // Platform collision: allow landing on top of blocks; side hits lose (unless invincible)
+  function collideBlocks(prevY){
+    const px = player.x, py = player.y, pw = player.w, ph = player.h;
+    const prevBottom = prevY + ph;
+    const bottom = py + ph;
+
+    // find the highest platform top we should land on this frame
+    let bestTop = null;
+
+    for (const b of blocks){
+      // broad overlap
+      if (px + pw <= b.x || px >= b.x + b.w) continue;
+
+      // Landing from above
+      const top = b.y;
+      const withinX = true;
+      const crossed = (prevBottom <= top) && (bottom >= top);
+      if (crossed){
+        // ensure we're not "inside" block
+        bestTop = (bestTop === null) ? top : Math.min(bestTop, top);
+      } else {
+        // side/inside overlap -> lose (unless invincible)
+        if (rectsOverlap(px, py, pw, ph, b.x, b.y, b.w, b.h)){
+          if (performance.now() < invincibleUntil) continue;
+          resetToStartLevel("You hit a block.");
+          return;
+        }
+      }
+    }
+
+    if (bestTop !== null && player.vy >= 0){
+      player.y = bestTop - ph;
+      player.vy = 0;
+      if (!player.onGround){
+        player.airJumps = hasRunPower("double_jump") ? 1 : 0;
+      }
+      player.onGround = true;
+    }
+  }
+
+  // ===== HUD =====
+  function updateHud(){
+    const pct = Math.min(100, (distance / LEVEL_LEN) * 100);
+    progEl.textContent = `${Math.floor(pct)}%`;
+    lvlHud.textContent = String(currentLevel);
+    startLvlHud.textContent = String(startLevel);
+
+    const diamonds = getDiamonds();
+    diamHud.textContent = diamonds;
+
+    if (pct > bestPct){
+      bestPct = pct;
+      localStorage.setItem(LS_BEST, String(bestPct));
+      bestEl.textContent = `${Math.floor(bestPct)}%`;
+    }
+  }
+
+  // ===== Win / Next Level =====
+  function winLevel(){
+    running = false;
+    pausedForQuiz = false;
+    quizOverlay.style.display = "none";
+
+    const cfg = levelConfig(currentLevel);
+    setDiamonds(getDiamonds() + cfg.reward);
+
+    if (practiceMode){
+      showStatus(
+        "Practice Complete",
+        `Level ${currentLevel} cleared!`,
+        `You earned ${cfg.reward} diamonds 💎.`,
+        "Go Back to Start Menu",
+        "Play Again",
+        () => backToStartMenu(),
+        () => { hideStatus(); startSingleLevel(practiceLevel, /*powersAlreadyApplied*/ true); }
+      );
+      return;
+    }
+
+    if (currentLevel >= TOTAL_LEVELS){
+      showStatus(
+        "Campaign Complete",
+        "You beat all 20 levels! 🎉",
+        `You earned ${cfg.reward} diamonds 💎 for Level ${currentLevel}.`,
+        "Go Back to Start Menu",
+        "Play Again",
+        () => backToStartMenu(),
+        () => startCampaign()
+      );
+      return;
+    }
+
+    const prev = currentLevel;
+    currentLevel += 1;
+
+    showStatus(
+      "Level Complete",
+      `Level ${prev} cleared!`,
+      `You earned ${cfg.reward} diamonds 💎. Next: Level ${currentLevel}.`,
+      "Go Back to Start Menu",
+      "Next Level",
+      () => backToStartMenu(),
+      () => { hideStatus(); startSingleLevel(currentLevel, /*powersAlreadyApplied*/ true); }
+    );
+  }
+
+  // ===== Draw =====
+  function draw(){
+    const W = worldW(), H = worldH();
+    const GY = groundY();
+
+    ctx.clearRect(0,0,W,H);
+
+    // stars
+    ctx.globalAlpha = 0.35;
+    for (let i=0;i<60;i++){
+      const x = (i*97 + Math.floor(distance*0.2)) % W;
+      const y = (i*53) % Math.floor(H*0.55);
+      ctx.fillStyle = "white";
+      ctx.fillRect(x, y, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // ground
+    ctx.fillStyle = "rgba(255,255,255,.08)";
+    ctx.fillRect(0, GY, W, 4);
+    ctx.fillStyle = "rgba(255,255,255,.04)";
+    ctx.fillRect(0, GY+4, W, H-(GY+4));
+
+    // blocks (staircases)
+    for (const b of blocks){
+      ctx.fillStyle = "rgba(124,92,255,.22)";
+      ctx.fillRect(b.x, b.y, b.w, b.h);
+      ctx.strokeStyle = "rgba(255,255,255,.15)";
+      ctx.strokeRect(b.x, b.y, b.w, b.h);
+    }
+
+    // spikes
+    for (const s of spikes){
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y + s.h);
+      ctx.lineTo(s.x + s.w/2, s.y);
+      ctx.lineTo(s.x + s.w, s.y + s.h);
+      ctx.closePath();
+      ctx.fillStyle = "rgba(255,77,109,.95)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.15)";
+      ctx.stroke();
+    }
+
+
+    // Rainbow trail draw
+    if (trail.length > 1){
+      for (let i=1;i<trail.length;i++){
+        const a = trail[i-1], b = trail[i];
+        const p = i / (trail.length-1); // 0..1
+        // Hue cycles as you move along the trail and over time
+        const hue = ( (performance.now()*0.06) + p*360 ) % 360;
+        const alpha = (p*0.85) + 0.05;
+        const w = 10 * (1 - p) + 2;
+
+        ctx.strokeStyle = `hsla(${hue}, 100%, 60%, ${alpha})`;
+        ctx.lineWidth = w;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+    }
+
+    // player
+    ctx.save();
+    ctx.translate(player.x + player.w/2, player.y + player.h/2);
+    ctx.rotate(player.rot);
+    ctx.fillStyle = "rgba(45,212,191,.95)";
+    ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
+    ctx.strokeStyle = "rgba(255,255,255,.18)";
+    ctx.strokeRect(-player.w/2, -player.h/2, player.w, player.h);
+
+    // shield / invincible ring
+    const inv = (performance.now() < invincibleUntil);
+    if (player.shield || inv){
+      ctx.beginPath();
+      ctx.arc(0,0, Math.max(player.w,player.h)*0.72, 0, Math.PI*2);
+      ctx.strokeStyle = inv ? "rgba(124,92,255,.55)" : "rgba(45,212,191,.45)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+    ctx.restore();
+  }
+
+  // ===== Main loop =====
+  function tick(now){
+    const dt = Math.min(0.033, (now - tPrev)/1000);
+    tPrev = now;
+
+    if (running && !pausedForQuiz){
+      const cfg = levelConfig(currentLevel);
+      const sFactor = slowFactor();
+
+      // keep speed "as fast as level 1"
+      speed = Math.min(cfg.speedMax, speed + 8*dt);
+      distance += speed * dt * sFactor;
+
+      // physics
+      const prevY = player.y;
+      player.vy += GRAVITY * dt;
+      player.y += player.vy * dt;
+
+      // ground
+      const GY = groundY();
+      if (player.y >= GY - player.h){
+        player.y = GY - player.h;
+        player.vy = 0;
+        if (!player.onGround){
+          player.airJumps = hasRunPower("double_jump") ? 1 : 0;
+        }
+        player.onGround = true;
+      } else {
+        player.onGround = false;
+      }
+
+      // blocks
+      collideBlocks(prevY);
+
+      if (player.onGround) { player.rot = 0; } else { player.rot += 6.2 * dt; }
+
+            // add trail point (flowing backward with world movement)
+      const nowMs = performance.now();
+      const behindX = player.x + player.w * 0.2;
+      const behindY = player.y + player.h * 0.6;
+      trail.push({ x: behindX, y: behindY, t: nowMs });
+      while (trail.length > TRAIL_MAX) trail.shift();
+
+            // move trail backward with world speed
+      for (const pt of trail){
+        pt.x -= speed * dt * sFactor;
+      }
+
+// move obstacles left
+      for (const s of spikes) s.x -= speed * dt * sFactor;
+      for (const b of blocks) b.x -= speed * dt * sFactor;
+
+      // remove offscreen
+      while (spikes.length && spikes[0].x + spikes[0].w < -40) spikes.shift();
+      while (blocks.length && blocks[0].x + blocks[0].w < -60) blocks.shift();
+
+      // keep generating
+      nextSpawnX -= speed * dt * sFactor;
+      ensureObstaclesAhead(cfg);
+
+      // collisions with spikes
+      for (const s of spikes){
+        // Make spike hitbox much smaller (easier): shrink spike collision box
+        const shrink = 0.55; // 55% smaller hitbox
+        const insetX = s.w * shrink * 0.5;
+        const insetY = s.h * shrink * 0.5;
+        const sx = s.x + insetX;
+        const sy = s.y + insetY;
+        const sw = s.w - insetX*2;
+        const sh = s.h - insetY*2;
+
+        if (rectsOverlap(player.x, player.y, player.w, player.h, sx, sy, sw, sh)){
+          hitSpike();
+          break;
+        }
+      }
+
+      // checkpoint every 1/8: mul then div
+      if (distance >= nextGateAt && gatesPassed < GATE_COUNT){
+        gatesPassed++;
+        nextGateAt = (LEVEL_LEN / GATE_COUNT) * (gatesPassed + 1);
+        updateHud();
+        quizStep = 0;
+        showQuiz("mul");
+      }
+
+      if (distance >= LEVEL_LEN){
+        winLevel();
+      }
+
+      updateHud();
+    }
+
+    draw();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+
+  // init counts
+  syncUI();
+})();
+</script>
+</body>
+</html>
